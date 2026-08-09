@@ -2,4 +2,4 @@
 tempCodeRunnerFile.py
 internships.csv
 *.pyc
-env/
+.env

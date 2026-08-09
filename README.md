@@ -28,6 +28,7 @@ This is technically optional, since the csv is printed out in the terminal
  
 SERVICE_ACCOUNT_FILE = "your-actual-key-filename.json"
 SPREADSHEET_NAME = "your_spreadsheet_name"
+SERVICE_EMAIL = "your_service_email
 
 change these variables in main.py to fit your needs
 

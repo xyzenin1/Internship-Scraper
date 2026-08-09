@@ -166,13 +166,20 @@ with open("internships.csv", "w", newline="", encoding="utf-8") as f:
 
 # Google cloud api for spreadsheet
 # Google Spreadsheet API and Google Drive API
-SERVICE_ACCOUNT_FILE = "SERVICE_ACCOUNT_FILE"
-SPREADSHEET_NAME = "SPREADSHEET_NAME"
+SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
+SPREADSHEET_NAME = os.getenv("SPREADSHEET_NAME")
+
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
-EMAIL = "internship-bot@internship-project-504917.iam.gserviceaccount.com"
+
+EMAIL = os.getenv("SERVICE_EMAIL")
+
+
+# safety net if names are not found
+if not SERVICE_ACCOUNT_FILE or not SPREADSHEET_NAME:
+    raise RuntimeError("Missing .env values -- check that .env exists and has SERVICE_ACCOUNT_FILE and SPREADSHEET_NAME set")
 
 
 # look for the internship email to share with spreadsheet
