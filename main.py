@@ -8,6 +8,7 @@ import os
 
 import gspread
 from google.oauth2.service_account import Credentials
+from gspread.utils import ValidationConditionType
 
 load_dotenv()
 
@@ -197,12 +198,37 @@ spreadsheet = client.open(SPREADSHEET_NAME)
 
 sheet = spreadsheet.sheet1
 
+
+
+# check if you applied to listing already
+try:
+    existing_records = sheet.get_all_records()
+except Exception:
+    existing_records = []
+    
+applied_status = {
+    row["link"]: row.get("applied", False)
+    for row in existing_records
+    if row.get("link")
+}
+
 sheet.clear()
-sheet.append_row(["category", "company", "role", "location", "link"])
+sheet.append_row(["category", "company", "role", "location", "link", "applied"], value_input_option="USER_ENTERED")
+
 
 rows_to_write = [
-    [job["category"], job["company"], job["role"], job["location"], job["link"]]
-    for job in all_jobs # appends jobs into spreadsheet, can change based on what you want to filter
+    [
+        job["category"], job["company"], job["role"], job["location"], job["link"],
+        applied_status.get(job["link"], False),  # default unchecked for new jobs, but keep old status
+    ]
+    for job in location_jobs  # show listings
 ]
 
-sheet.append_rows(rows_to_write)
+sheet.append_rows(rows_to_write, value_input_option="USER_ENTERED")
+
+last_row = len(rows_to_write) + 1  # +1 for header row
+sheet.add_validation(
+    f"F2:F{last_row}",   # last column is now listed as applied
+    ValidationConditionType.boolean,        # checkmark boxes instead of just saying TRUE or FALSE
+    [],
+)
