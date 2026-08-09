@@ -34,6 +34,10 @@ change these variables in main.py to fit your needs
 
 You put these in a .env file
 
+SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
+SPREADSHEET_NAME = os.getenv("SPREADSHEET_NAME")
+EMAIL = os.getenv("SERVICE_EMAIL")
+
 
 
 ## Credits
