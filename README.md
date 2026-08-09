@@ -31,6 +31,9 @@ SPREADSHEET_NAME = "your_spreadsheet_name"
 
 change these variables in main.py to fit your needs
 
+You put these in a .env file
+
+
 
 ## Credits
  
