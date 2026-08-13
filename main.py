@@ -5,12 +5,98 @@ import json
 
 from dotenv import load_dotenv
 import os
+from email.mime.text import MIMEText
+import smtplib
+
+import time
 
 import gspread
 from google.oauth2.service_account import Credentials
 from gspread.utils import ValidationConditionType
 
 load_dotenv()
+
+
+CARRIER_GATEWAYS = {
+    "att": "txt.att.net",
+    "verizon": "vtext.com",
+    "tmobile": "tmomail.net",
+    "sprint": "messaging.sprintpcs.com",
+    "boost": "sms.myboostmobile.com",
+    "cricket": "sms.cricketwireless.net",
+    "uscellular": "email.uscc.net",
+    "googlefi": "msg.fi.google.com",
+}
+
+
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD")
+PHONE_NUMBER = os.getenv("PHONE_NUMBER")
+CARRIER = os.getenv("CARRIER")
+
+print("DEBUG:", SMTP_EMAIL, PHONE_NUMBER, CARRIER)
+
+
+def get_sms_gateway_address():
+    if not PHONE_NUMBER or not CARRIER:
+        return None
+    domain = CARRIER_GATEWAYS.get(CARRIER.lower())
+    if not domain:
+        print(f"Unknown carrier '{CARRIER}' - check CARRIER_GATEWAYS keys")
+        return None
+    return f"{PHONE_NUMBER}@{domain}"
+
+
+def send_text(body):
+    gateway_address = get_sms_gateway_address()
+    if not SMTP_EMAIL or not SMTP_APP_PASSWORD or not gateway_address:
+        print("Texting skipped -- missing SMTP_EMAIL, SMTP_APP_PASSWORD, PHONE_NUMBER, or CARRIER in .env")
+        return
+
+    msg = MIMEText(body)
+    msg["From"] = SMTP_EMAIL
+    msg["To"] = gateway_address
+    msg["Subject"] = ""  # most carrier gateways ignore/prepend the subject, keep it blank
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(SMTP_EMAIL, SMTP_APP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, gateway_address, msg.as_string())
+        print(f"Text sent to {gateway_address}")
+    except Exception as e:
+        print(f"Failed to send text: {e}")
+
+
+
+
+
+
+def send_new_job_texts(jobs, chunk_size=300, delay_seconds=3):
+    # Splits into multiple texts if the list is long
+    # If message is too long, it might get rejected
+    header = f"{len(jobs)} new matching internships:\n"
+    body = header
+    chunks = []
+    for job in jobs:
+        line = f"{job['company']} - {job['role']} - {job['location']}\n"
+        if len(body) + len(line) > chunk_size:
+            chunks.append(body)
+            body = ""
+        body += line
+    if body.strip():
+        chunks.append(body)
+        
+    for i, chunk in enumerate(chunks):
+        send_text(chunk)
+        if i < len(chunks) - 1:
+            time.sleep(delay_seconds)
+
+
+
+
+
+
+
 
 
 url = "https://github.com/SimplifyJobs/Summer2027-Internships"
@@ -79,6 +165,7 @@ for el in article.find_all(["h2", "h3", "table"]):
             })
 
 
+
 # filter for locations
 arizona_locations = [", AZ", "Phoenix", "Tempe", "Scottsdale", "Chandler", "Mesa", "Tucson"]
 
@@ -97,61 +184,109 @@ swe_keywords = [
     "platform engineer", "infrastructure engineer", "site reliability",
 ]
 
-
 location_jobs = [job for job in all_jobs
                  if any(loc in job["location"] for loc in arizona_locations)
                  ]
 
-print(f"{len(location_jobs)} Arizona Internships Found")
-for job in location_jobs:
-    print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
-    
-cyber_jobs = [job for job in location_jobs
-                if any(kw in job["role"].lower() for kw in cyber_keywords)
-                ]
 
-print("")
-print(f"{len(cyber_jobs)} match for cybersecurity")
-if len(cyber_jobs) > 0:
-    for job in cyber_jobs:
-        print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+# user input to decide location
+user_input = input("Choose 1 for all locations, 2 for Arizona Only, or 3 for a location of your choice: ")
+jobs_to_show = 0
+
+while True:
+    try:
+        choice = int(user_input)
+    except ValueError:
+        print("Not a valid input! Please enter 1, 2, or 3.")
+        user_input = input("Choose 1 for all locations, 2 for Arizona Only, or 3 for a location of your choice: ")
+        continue
+
+    if choice == 1:
+        jobs_to_show = all_jobs
+        
+        for job in all_jobs:
+            print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+        break
+    elif choice == 2:
+        jobs_to_show = location_jobs
+        print(f"{len(location_jobs)} Arizona Internships Found")
         
         
-
-swe_jobs = [job for job in location_jobs
-                if any(swe in job["role"].lower() for swe in swe_keywords)
-            ]
-    
-    
-    
-print("")
-print(f"{len(swe_jobs)} match for SWE")
-if len(swe_jobs) > 0:
-    for job in swe_jobs:
-        print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
-
-ds_jobs = [
-        job for job in location_jobs
-        if "Data Science" in job["category"]
-    ]
-
-print("")
-print(f"{len(ds_jobs)} match for Data Science")
-if len(ds_jobs) > 0:
-    for job in location_jobs:
-        print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
-        
-pm_jobs = [
-        job for job in location_jobs
-        if "Product Management" in job["category"]
-    ]
-
-print("")
-print(f"{len(pm_jobs)} match for Product Management")
-if len(pm_jobs) > 0:
-    for job in location_jobs:
-        print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+        for job in location_jobs:
+            print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
             
+        cyber_jobs = [job for job in location_jobs
+                        if any(kw in job["role"].lower() for kw in cyber_keywords)
+                        ]
+
+        print("")
+        print(f"{len(cyber_jobs)} match for cybersecurity")
+        if len(cyber_jobs) > 0:
+            for job in cyber_jobs:
+                print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+                
+                
+
+        swe_jobs = [job for job in location_jobs
+                        if any(swe in job["role"].lower() for swe in swe_keywords)
+                    ]
+            
+        print("")
+        print(f"{len(swe_jobs)} match for SWE")
+        if len(swe_jobs) > 0:
+            for job in swe_jobs:
+                print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+
+        ds_jobs = [
+                job for job in location_jobs
+                if "Data Science" in job["category"]
+            ]
+
+        print("")
+        print(f"{len(ds_jobs)} match for Data Science")
+        if len(ds_jobs) > 0:
+            for job in location_jobs:
+                print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+                
+        pm_jobs = [
+                job for job in location_jobs
+                if "Product Management" in job["category"]
+            ]
+
+        print("")
+        print(f"{len(pm_jobs)} match for Product Management")
+        if len(pm_jobs) > 0:
+            for job in location_jobs:
+                print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+        
+        
+        break
+    
+    elif choice == 3:
+        user_location_choice = input("Type in a location (ex. Phoenix, AZ) (ex. IL): ").strip()
+        custom_locations = [job for job in all_jobs
+                        if user_location_choice.lower() in job["location"].lower()
+                        ]
+        
+        jobs_to_show = custom_locations
+        
+        # checks to see if input is found in list, if not then loop again
+        if len(jobs_to_show) == 0:
+            print(f"No internships found! Try again!")
+            user_input = input("Choose 1 for all locations, 2 for Arizona Only, or 3 for a location of your choice: ")
+
+            continue
+    
+        for job in jobs_to_show:
+            print(f"{job['company']} - {job['role']} - {job['location']} - {job['link']}")
+        
+        break
+    else:
+        print("Not a valid input! Please enter 1, 2, or 3.")
+        user_input = input("Choose 1 for all locations, 2 for Arizona Only, or 3 for a location of your choice: ")
+
+
+
 
 
 with open("internships.csv", "w", newline="", encoding="utf-8") as f:
@@ -203,32 +338,90 @@ sheet = spreadsheet.sheet1
 # check if you applied to listing already
 try:
     existing_records = sheet.get_all_records()
-except Exception:
+    print(f"DEBUG: successfully read {len(existing_records)} existing rows")
+except Exception as e:
+    print(f"DEBUG: get_all_records failed with: {e}")
     existing_records = []
     
+def to_bool(value):
+    return str(value).strip().upper() == "TRUE"
+    
+
 applied_status = {
-    row["link"]: row.get("applied", False)
+    row["link"]: to_bool(row.get("applied", False))
     for row in existing_records
     if row.get("link")
 }
 
-sheet.clear()
-sheet.append_row(["category", "company", "role", "location", "link", "applied"], value_input_option="USER_ENTERED")
+# check if the posting was seen before
+previously_seen_links = set(applied_status.keys())
 
 
-rows_to_write = [
-    [
-        job["category"], job["company"], job["role"], job["location"], job["link"],
-        applied_status.get(job["link"], False),  # default unchecked for new jobs, but keep old status
+
+
+if len(jobs_to_show) == 0:
+    print("No jobs to write -- skipping Google Sheets update to avoid wiping existing data.")
+else:
+    sheet.clear()
+    sheet.append_row(["category", "company", "role", "location", "link", "applied", "Seen"], value_input_option="USER_ENTERED")
+
+
+    
+    def to_sheet_bool(value):
+        return "TRUE" if value else "FALSE"
+    
+    
+    rows_to_write = [
+        [
+            job["category"], job["company"], job["role"], job["location"], job["link"],
+            to_sheet_bool(applied_status.get(job["link"], False)),  # default unchecked for new jobs, but keep old status
+            to_sheet_bool(job["link"] in previously_seen_links),   # return true if the posting was never seen before
+        ]
+        for job in jobs_to_show  # show listings
     ]
-    for job in location_jobs  # show listings
-]
 
-sheet.append_rows(rows_to_write, value_input_option="USER_ENTERED")
+    sheet.append_rows(rows_to_write, value_input_option="USER_ENTERED")
 
-last_row = len(rows_to_write) + 1  # +1 for header row
-sheet.add_validation(
-    f"F2:F{last_row}",   # last column is now listed as applied
-    ValidationConditionType.boolean,        # checkmark boxes instead of just saying TRUE or FALSE
-    [],
-)
+    last_row = len(rows_to_write) + 1  # +1 for header row
+
+    sheet.add_validation(
+        f"F2:F{last_row}",   # last column is now listed as applied
+        ValidationConditionType.boolean,        # checkmark boxes instead of just saying TRUE or FALSE
+        [],
+    )
+
+    # Checks for new
+    sheet.add_validation(
+        f"G2:G{last_row}",
+        ValidationConditionType.boolean, 
+        [],
+    )
+
+    # increment count if a new posting is recorded
+    new_count = sum(1 for row in rows_to_write if not row[6])
+    print(f"{new_count} new internships since last run")
+    
+    
+    def matches_filters(job):
+        role_lower = job["role"].lower()
+        category = job.get("category") or ""
+        if any(kw in role_lower for kw in cyber_keywords):
+            return True
+        if any(kw in role_lower for kw in swe_keywords):
+            return True
+        if "Data Science" in category:
+            return True
+        if "Product Management" in category:
+            return True
+        return False
+    
+    new_matching_jobs = [
+        job for job in jobs_to_show
+        if job["link"] not in previously_seen_links and matches_filters(job)
+    ]
+
+    if new_matching_jobs:
+        print(f"Texting {len(new_matching_jobs)} new listing that match your filters: ")
+        send_new_job_texts(new_matching_jobs)
+    else:
+        print("No new listings matched your filters")
