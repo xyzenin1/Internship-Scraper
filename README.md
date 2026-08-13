@@ -30,6 +30,11 @@ SERVICE_ACCOUNT_FILE = "your-actual-key-filename.json"
 SPREADSHEET_NAME = "your_spreadsheet_name"
 SERVICE_EMAIL = "your_service_email
 
+SMTP_EMAIL=
+SMTP_APP_PASSWORD=
+PHONE_NUMBER=
+CARRIER=
+
 change these variables in main.py to fit your needs
 
 You put these in a .env file
@@ -37,6 +42,17 @@ You put these in a .env file
 SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
 SPREADSHEET_NAME = os.getenv("SPREADSHEET_NAME")
 EMAIL = os.getenv("SERVICE_EMAIL")
+
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD")
+PHONE_NUMBER = os.getenv("PHONE_NUMBER")
+CARRIER = os.getenv("CARRIER")
+
+
+https://myaccount.google.com/apppasswords?rapt=AEjHL4MOPXXem7_UqNVujdmSMJMSDE23aH4SAn6z096a4xYXW6AFMjjlzOsyql6SELhH1My0aDI0ai4fMmT4bqPajDeN1S3wOtplPSDdMpMg_LLsjOfvUMY
+
+
+create a password, and use that for SMTP_APP_PASSWORD
 
 
 
